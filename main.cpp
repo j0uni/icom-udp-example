@@ -10,6 +10,7 @@
  * Defaults: port 50001, user "icom", password "icom"
  */
 
+#include "audio_output.hpp"
 #include "icom_protocol.hpp"
 #include "udp_socket.hpp"
 
@@ -173,6 +174,17 @@ int main(int argc, char** argv) {
     uint64_t audioPackets = 0;
     uint64_t audioBytes = 0;
     long lastFreqHz = -1;
+
+    std::unique_ptr<AudioOutput> audioOut = AudioOutput::create();
+    bool audioPlayback = false;
+#ifdef ICOM_UDP_PORTAUDIO
+    if (audioOut->open(AUDIO_SAMPLE_RATE, 1)) {
+        audioPlayback = true;
+        std::cout << "[audio] PortAudio playback enabled (" << AUDIO_SAMPLE_RATE << " Hz mono PCM16)\n";
+    } else {
+        std::cerr << "[audio] PortAudio open failed — stats only\n";
+    }
+#endif
 
     auto t0 = std::chrono::steady_clock::now();
     ctrl.lastAreYouThere = ctrl.lastPing = civ.lastAreYouThere = audio.lastAreYouThere = t0;
@@ -367,6 +379,10 @@ int main(int argc, char** argv) {
                 size_t payload = buf.size() - AUDIO_HEAD_SIZE;
                 audioPackets++;
                 audioBytes += payload;
+                if (audioPlayback && payload >= 2) {
+                    const auto* pcm = reinterpret_cast<const int16_t*>(buf.data() + AUDIO_HEAD_SIZE);
+                    audioOut->pushPcm16(pcm, payload / 2);
+                }
             }
         };
 
@@ -384,6 +400,8 @@ int main(int argc, char** argv) {
             }
         }
     }
+
+    if (audioPlayback) audioOut->close();
 
     if (cstate == CtrlState::Done && civOpened)
         std::cout << "\nSuccess: control + CI-V + audio streams were active.\n";

@@ -25,6 +25,17 @@ cmake -B build
 cmake --build build
 ```
 
+Optional PortAudio playback (RX audio to speakers):
+
+```bash
+brew install portaudio   # macOS; use your distro package on Linux
+cmake -B build -DICOM_UDP_PORTAUDIO=ON
+cmake --build build
+ctest --test-dir build   # plays a short test tone
+```
+
+Without `ICOM_UDP_PORTAUDIO`, the program still receives and counts audio packets but does not play them.
+
 ## Run
 
 ```bash
@@ -80,6 +91,9 @@ Exit code **0** = handshake completed; **2** = timeout (no radio or wrong creden
 | `main.cpp` | State machine and poll loop |
 | `icom_protocol.hpp` | Packet build/parse helpers |
 | `udp_socket.hpp` | UDP bind/send/recv |
+| `audio_output.hpp` | Optional RX playback interface |
+| `audio_output_portaudio.cpp` | PortAudio backend (`ICOM_UDP_PORTAUDIO=ON`) |
+| `audio_output_stub.cpp` | No-op backend (default) |
 | `CMakeLists.txt` | Build configuration |
 
 ## License
